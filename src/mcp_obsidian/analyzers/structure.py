@@ -283,12 +283,40 @@ class VaultStructureAnalyzer:
         folder_names = [Path(f.get("path", "")).name for f in folders]
 
         year_pattern = any(re.match(r"^\d{4}$", name) for name in folder_names)
-        month_pattern = any(re.match(r"^\d{2} - \w+", name) for name in folder_names)
 
         if year_pattern:
-            if month_pattern:
+            # Check if there are month folders inside year folders
+            month_pattern = False
+            week_pattern = False
+
+            for year_folder in folders:
+                if re.match(r"^\d{4}$", Path(year_folder.get("path", "")).name):
+                    # Check subfolders for month pattern
+                    month_folders = year_folder.get("folders", [])
+                    month_names = [Path(f.get("path", "")).name for f in month_folders]
+
+                    if any(re.match(r"^\d{2} - \w+", name) for name in month_names):
+                        month_pattern = True
+
+                        # Check if there are week folders inside month folders
+                        for month_folder in month_folders:
+                            week_folders = month_folder.get("folders", [])
+                            week_names = [Path(f.get("path", "")).name for f in week_folders]
+
+                            if any(re.match(r"^W\d{2}$", name) for name in week_names):
+                                week_pattern = True
+                                break
+
+                    if week_pattern:
+                        break
+
+            # Return most specific pattern found
+            if year_pattern and month_pattern and week_pattern:
+                return "Daily Notes/YYYY/MM - Month Name/W##/YYYY-MM-DD.md"
+            elif year_pattern and month_pattern:
                 return "Daily Notes/YYYY/MM - Month Name/YYYY-MM-DD.md"
-            return "Daily Notes/YYYY/YYYY-MM-DD.md"
+            else:
+                return "Daily Notes/YYYY/YYYY-MM-DD.md"
 
         # Check files for date patterns
         files = structure.get("files", [])

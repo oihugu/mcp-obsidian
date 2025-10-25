@@ -314,3 +314,88 @@ export OBSIDIAN_API_KEY="seu_token_aqui"
   "config_path": "/path/to/vault-config.json"
 }
 ```
+
+
+## Fase 4: Gerenciamento de Conhecimento ✅
+
+Sistema completo de CRUD para Pessoas, Projetos e Daily Notes.
+
+### 🆕 Tools Disponíveis (9 novos)
+
+#### People Management
+
+1. **`obsidian_create_person`** - Cria pessoa com frontmatter estruturado
+2. **`obsidian_list_people`** - Lista pessoas com filtros (company, role, tags)
+3. **`obsidian_update_person`** - Atualiza frontmatter ou adiciona conteúdo
+
+#### Projects Management
+
+4. **`obsidian_create_project`** - Cria projeto com hierarquia Company/Project
+5. **`obsidian_list_projects`** - Lista projetos com filtros (company, status)
+6. **`obsidian_list_companies`** - Lista todas as empresas/clientes
+
+#### Daily Notes Management
+
+7. **`obsidian_create_daily_note`** - Cria daily note com estrutura detectada
+8. **`obsidian_append_to_daily`** - Adiciona em seção específica da daily
+9. **`obsidian_get_recent_dailies`** - Busca daily notes recentes
+
+### Schemas de Frontmatter
+
+**Person:**
+```yaml
+name: Igor Curi
+type: person
+role: Colleague
+company: BeSolution
+email: igor@example.com
+tags: [colleague, besolution]
+```
+
+**Project:**
+```yaml
+project: CNI - Chatbot
+type: project
+company: BeSolution
+status: active
+start_date: 2024-01-15
+team: [Igor Curi, Amanda]
+technologies: [Python, LeanML]
+tags: [cni, ai]
+```
+
+**Daily Note:**
+```yaml
+type: daily-note
+date: 2025-10-25
+time: 14:30
+tags: [work-log]
+mentions: [Igor Curi]
+```
+
+### Workflows de Exemplo
+
+**Adicionar pessoa e projeto:**
+```
+1. obsidian_create_person
+   - name: "João Silva"
+   - company: "Cliente X"
+   
+2. obsidian_create_project
+   - name: "Novo Sistema"
+   - company: "Cliente X"
+   - team: ["João Silva"]
+```
+
+**Daily note com contexto:**
+```
+1. obsidian_create_daily_note
+   - use_template: true
+   
+2. obsidian_append_to_daily
+   - section: "Reuniões"
+   - content: "- 14:00 - Reunião com [[João Silva]]"
+```
+
+Veja [PHASE4_IMPLEMENTATION.md](PHASE4_IMPLEMENTATION.md) para documentação completa.
+

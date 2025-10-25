@@ -61,6 +61,21 @@ add_tool_handler(tools.AnalyzeFrontmatterInFolderToolHandler())
 add_tool_handler(tools.SuggestFrontmatterForNoteToolHandler())
 add_tool_handler(tools.GetFolderContextToolHandler())
 
+# People Management Tools
+add_tool_handler(tools.CreatePersonToolHandler())
+add_tool_handler(tools.ListPeopleToolHandler())
+add_tool_handler(tools.UpdatePersonToolHandler())
+
+# Projects Management Tools
+add_tool_handler(tools.CreateProjectToolHandler())
+add_tool_handler(tools.ListProjectsToolHandler())
+add_tool_handler(tools.ListCompaniesToolHandler())
+
+# Daily Notes Tools
+add_tool_handler(tools.CreateDailyNoteToolHandler())
+add_tool_handler(tools.AppendToDailyNoteToolHandler())
+add_tool_handler(tools.GetRecentDailyNotesToolHandler())
+
 @app.list_tools()
 async def list_tools() -> list[Tool]:
     """List available tools."""

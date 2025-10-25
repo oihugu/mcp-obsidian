@@ -904,3 +904,501 @@ class GetFolderContextToolHandler(ToolHandler):
                 text=json.dumps(context, indent=2)
             )
         ]
+
+# ==============================================================================
+# PEOPLE MANAGEMENT TOOLS
+# ==============================================================================
+
+class CreatePersonToolHandler(ToolHandler):
+    """Creates a new person note with structured frontmatter."""
+
+    def __init__(self):
+        super().__init__("obsidian_create_person")
+
+    def get_tool_description(self):
+        return Tool(
+            name=self.name,
+            description="Creates a new person note with structured frontmatter in the People folder. Automatically detects folder location and applies consistent schema.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Full name of the person (e.g., 'Igor Curi')"
+                    },
+                    "role": {
+                        "type": "string",
+                        "description": "Role or relationship (e.g., 'Colleague', 'Client', 'Manager')"
+                    },
+                    "company": {
+                        "type": "string",
+                        "description": "Company or organization"
+                    },
+                    "email": {
+                        "type": "string",
+                        "description": "Email address"
+                    },
+                    "linkedin": {
+                        "type": "string",
+                        "description": "LinkedIn profile URL"
+                    },
+                    "tags": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Tags for categorization"
+                    },
+                    "content": {
+                        "type": "string",
+                        "description": "Initial content for the note"
+                    }
+                },
+                "required": ["name"]
+            }
+        )
+
+    def run_tool(self, args: dict) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
+        from .knowledge.people import PeopleManager
+
+        if "name" not in args:
+            raise RuntimeError("name argument missing")
+
+        api = obsidian.Obsidian(api_key=api_key, host=obsidian_host)
+        manager = PeopleManager(api)
+
+        name = args.pop("name")
+        content = args.pop("content", "")
+
+        result = manager.create_person(name=name, content=content, **args)
+
+        return [TextContent(type="text", text=json.dumps(result, indent=2))]
+
+
+class ListPeopleToolHandler(ToolHandler):
+    """Lists all people in the vault."""
+
+    def __init__(self):
+        super().__init__("obsidian_list_people")
+
+    def get_tool_description(self):
+        return Tool(
+            name=self.name,
+            description="Lists all people in the People folder with optional filtering by company, role, or tags.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "include_frontmatter": {
+                        "type": "boolean",
+                        "description": "Whether to include full frontmatter (default: false)",
+                        "default": False
+                    },
+                    "company": {
+                        "type": "string",
+                        "description": "Filter by company"
+                    },
+                    "role": {
+                        "type": "string",
+                        "description": "Filter by role"
+                    },
+                    "tags": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Filter by tags"
+                    }
+                }
+            }
+        )
+
+    def run_tool(self, args: dict) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
+        from .knowledge.people import PeopleManager
+
+        api = obsidian.Obsidian(api_key=api_key, host=obsidian_host)
+        manager = PeopleManager(api)
+
+        include_frontmatter = args.get("include_frontmatter", False)
+
+        # Build filters
+        filters = {}
+        if "company" in args:
+            filters["company"] = args["company"]
+        if "role" in args:
+            filters["role"] = args["role"]
+        if "tags" in args:
+            filters["tags"] = args["tags"]
+
+        people = manager.list_people(
+            filters=filters if filters else None,
+            include_frontmatter=include_frontmatter
+        )
+
+        return [TextContent(type="text", text=json.dumps(people, indent=2))]
+
+
+class UpdatePersonToolHandler(ToolHandler):
+    """Updates a person's note."""
+
+    def __init__(self):
+        super().__init__("obsidian_update_person")
+
+    def get_tool_description(self):
+        return Tool(
+            name=self.name,
+            description="Updates a person's note frontmatter or appends content. Can update individual fields or entire frontmatter.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Person's name"
+                    },
+                    "role": {
+                        "type": "string",
+                        "description": "Update role"
+                    },
+                    "company": {
+                        "type": "string",
+                        "description": "Update company"
+                    },
+                    "email": {
+                        "type": "string",
+                        "description": "Update email"
+                    },
+                    "append_content": {
+                        "type": "string",
+                        "description": "Content to append to note"
+                    }
+                },
+                "required": ["name"]
+            }
+        )
+
+    def run_tool(self, args: dict) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
+        from .knowledge.people import PeopleManager
+
+        if "name" not in args:
+            raise RuntimeError("name argument missing")
+
+        api = obsidian.Obsidian(api_key=api_key, host=obsidian_host)
+        manager = PeopleManager(api)
+
+        name = args.pop("name")
+        append_content = args.pop("append_content", None)
+
+        result = manager.update_person(name=name, append_content=append_content, **args)
+
+        return [TextContent(type="text", text=json.dumps(result, indent=2))]
+
+
+# ==============================================================================
+# PROJECTS MANAGEMENT TOOLS
+# ==============================================================================
+
+class CreateProjectToolHandler(ToolHandler):
+    """Creates a new project note."""
+
+    def __init__(self):
+        super().__init__("obsidian_create_project")
+
+    def get_tool_description(self):
+        return Tool(
+            name=self.name,
+            description="Creates a new project note with structured frontmatter. Follows detected hierarchy (Company/Project) and applies consistent schema.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Project name (e.g., 'CNI - Chatbot')"
+                    },
+                    "company": {
+                        "type": "string",
+                        "description": "Company or client name (e.g., 'BeSolution')"
+                    },
+                    "status": {
+                        "type": "string",
+                        "description": "Project status",
+                        "enum": ["active", "paused", "completed", "archived"]
+                    },
+                    "start_date": {
+                        "type": "string",
+                        "description": "Start date (YYYY-MM-DD)"
+                    },
+                    "team": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Team members"
+                    },
+                    "technologies": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Technologies used"
+                    },
+                    "tags": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Tags for categorization"
+                    },
+                    "content": {
+                        "type": "string",
+                        "description": "Initial content"
+                    }
+                },
+                "required": ["name"]
+            }
+        )
+
+    def run_tool(self, args: dict) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
+        from .knowledge.projects import ProjectsManager
+
+        if "name" not in args:
+            raise RuntimeError("name argument missing")
+
+        api = obsidian.Obsidian(api_key=api_key, host=obsidian_host)
+        manager = ProjectsManager(api)
+
+        name = args.pop("name")
+        company = args.pop("company", None)
+        content = args.pop("content", "")
+
+        result = manager.create_project(name=name, company=company, content=content, **args)
+
+        return [TextContent(type="text", text=json.dumps(result, indent=2))]
+
+
+class ListProjectsToolHandler(ToolHandler):
+    """Lists all projects in the vault."""
+
+    def __init__(self):
+        super().__init__("obsidian_list_projects")
+
+    def get_tool_description(self):
+        return Tool(
+            name=self.name,
+            description="Lists all projects with optional filtering by company, status, or tags.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "company": {
+                        "type": "string",
+                        "description": "Filter by company/client"
+                    },
+                    "status": {
+                        "type": "string",
+                        "description": "Filter by status",
+                        "enum": ["active", "paused", "completed", "archived"]
+                    },
+                    "include_frontmatter": {
+                        "type": "boolean",
+                        "description": "Include full frontmatter (default: false)",
+                        "default": False
+                    }
+                }
+            }
+        )
+
+    def run_tool(self, args: dict) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
+        from .knowledge.projects import ProjectsManager
+
+        api = obsidian.Obsidian(api_key=api_key, host=obsidian_host)
+        manager = ProjectsManager(api)
+
+        company = args.get("company")
+        include_frontmatter = args.get("include_frontmatter", False)
+
+        # Build filters
+        filters = {}
+        if "status" in args:
+            filters["status"] = args["status"]
+
+        projects = manager.list_projects(
+            company=company,
+            filters=filters if filters else None,
+            include_frontmatter=include_frontmatter
+        )
+
+        return [TextContent(type="text", text=json.dumps(projects, indent=2))]
+
+
+class ListCompaniesToolHandler(ToolHandler):
+    """Lists all companies/clients."""
+
+    def __init__(self):
+        super().__init__("obsidian_list_companies")
+
+    def get_tool_description(self):
+        return Tool(
+            name=self.name,
+            description="Lists all companies/clients from the projects hierarchy.",
+            inputSchema={
+                "type": "object",
+                "properties": {}
+            }
+        )
+
+    def run_tool(self, args: dict) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
+        from .knowledge.projects import ProjectsManager
+
+        api = obsidian.Obsidian(api_key=api_key, host=obsidian_host)
+        manager = ProjectsManager(api)
+
+        companies = manager.list_companies()
+
+        return [TextContent(type="text", text=json.dumps({"companies": companies}, indent=2))]
+
+
+# ==============================================================================
+# DAILY NOTES TOOLS
+# ==============================================================================
+
+class CreateDailyNoteToolHandler(ToolHandler):
+    """Creates a daily note with intelligent structure."""
+
+    def __init__(self):
+        super().__init__("obsidian_create_daily_note")
+
+    def get_tool_description(self):
+        return Tool(
+            name=self.name,
+            description="Creates a daily note for a specific date using detected organizational pattern and template structure.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "date": {
+                        "type": "string",
+                        "description": "Date in YYYY-MM-DD format (defaults to today)"
+                    },
+                    "use_template": {
+                        "type": "boolean",
+                        "description": "Whether to use detected template structure (default: true)",
+                        "default": True
+                    },
+                    "mentions": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "People to mention in frontmatter"
+                    }
+                }
+            }
+        )
+
+    def run_tool(self, args: dict) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
+        from .knowledge.daily import DailyNotesManager
+        from datetime import datetime
+
+        api = obsidian.Obsidian(api_key=api_key, host=obsidian_host)
+        manager = DailyNotesManager(api)
+
+        date = None
+        if "date" in args:
+            try:
+                date = datetime.strptime(args["date"], "%Y-%m-%d")
+            except ValueError:
+                raise RuntimeError("Invalid date format. Use YYYY-MM-DD")
+
+        use_template = args.get("use_template", True)
+        mentions = args.get("mentions")
+
+        kwargs = {}
+        if mentions:
+            kwargs["mentions"] = mentions
+
+        result = manager.create_daily_note(date=date, use_template=use_template, **kwargs)
+
+        return [TextContent(type="text", text=json.dumps(result, indent=2))]
+
+
+class AppendToDailyNoteToolHandler(ToolHandler):
+    """Appends content to a daily note."""
+
+    def __init__(self):
+        super().__init__("obsidian_append_to_daily")
+
+    def get_tool_description(self):
+        return Tool(
+            name=self.name,
+            description="Appends content to a daily note, optionally under a specific section heading. Creates the note if it doesn't exist.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "content": {
+                        "type": "string",
+                        "description": "Content to append"
+                    },
+                    "section": {
+                        "type": "string",
+                        "description": "Section heading to append under (e.g., 'Notas Rápidas')"
+                    },
+                    "date": {
+                        "type": "string",
+                        "description": "Date in YYYY-MM-DD format (defaults to today)"
+                    }
+                },
+                "required": ["content"]
+            }
+        )
+
+    def run_tool(self, args: dict) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
+        from .knowledge.daily import DailyNotesManager
+        from datetime import datetime
+
+        if "content" not in args:
+            raise RuntimeError("content argument missing")
+
+        api = obsidian.Obsidian(api_key=api_key, host=obsidian_host)
+        manager = DailyNotesManager(api)
+
+        content = args["content"]
+        section = args.get("section")
+
+        date = None
+        if "date" in args:
+            try:
+                date = datetime.strptime(args["date"], "%Y-%m-%d")
+            except ValueError:
+                raise RuntimeError("Invalid date format. Use YYYY-MM-DD")
+
+        result = manager.append_to_daily_note(content=content, section=section, date=date)
+
+        return [TextContent(type="text", text=json.dumps(result, indent=2))]
+
+
+class GetRecentDailyNotesToolHandler(ToolHandler):
+    """Gets recent daily notes."""
+
+    def __init__(self):
+        super().__init__("obsidian_get_recent_dailies")
+
+    def get_tool_description(self):
+        return Tool(
+            name=self.name,
+            description="Gets recent daily notes for a specified number of days.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "days": {
+                        "type": "integer",
+                        "description": "Number of days to look back (default: 7)",
+                        "default": 7,
+                        "minimum": 1,
+                        "maximum": 90
+                    },
+                    "include_content": {
+                        "type": "boolean",
+                        "description": "Whether to include full content (default: false)",
+                        "default": False
+                    }
+                }
+            }
+        )
+
+    def run_tool(self, args: dict) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
+        from .knowledge.daily import DailyNotesManager
+
+        api = obsidian.Obsidian(api_key=api_key, host=obsidian_host)
+        manager = DailyNotesManager(api)
+
+        days = args.get("days", 7)
+        include_content = args.get("include_content", False)
+
+        notes = manager.get_recent_daily_notes(days=days, include_content=include_content)
+
+        return [TextContent(type="text", text=json.dumps(notes, indent=2))]
