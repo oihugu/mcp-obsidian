@@ -1,7 +1,7 @@
 [project]
 name = "mcp-obsidian"
-version = "0.2.1"
-description = "MCP server to work with Obsidian via the remote REST plugin"
+version = "0.3.0"
+description = "MCP server to work with Obsidian via the remote REST plugin with FastAPI wrapper"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -11,6 +11,11 @@ dependencies = [
  "sentence-transformers>=2.2.2",
  "faiss-cpu>=1.7.4",
  "numpy>=1.24.0",
+ "fastapi>=0.104.0",
+ "uvicorn[standard]>=0.24.0",
+ "pyjwt>=2.8.0",
+ "python-multipart>=0.0.6",
+ "pyyaml>=6.0.1",
 ]
 [[project.authors]]
 name = "Markus Pfundstein"
