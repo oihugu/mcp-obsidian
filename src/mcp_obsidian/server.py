@@ -55,6 +55,12 @@ add_tool_handler(tools.PeriodicNotesToolHandler())
 add_tool_handler(tools.RecentPeriodicNotesToolHandler())
 add_tool_handler(tools.RecentChangesToolHandler())
 
+# Discovery and Analysis Tools
+add_tool_handler(tools.AnalyzeVaultStructureToolHandler())
+add_tool_handler(tools.AnalyzeFrontmatterInFolderToolHandler())
+add_tool_handler(tools.SuggestFrontmatterForNoteToolHandler())
+add_tool_handler(tools.GetFolderContextToolHandler())
+
 @app.list_tools()
 async def list_tools() -> list[Tool]:
     """List available tools."""

@@ -630,3 +630,277 @@ class RecentChangesToolHandler(ToolHandler):
                 text=json.dumps(results, indent=2)
             )
         ]
+
+# ==============================================================================
+# DISCOVERY AND ANALYSIS TOOLS
+# ==============================================================================
+
+class AnalyzeVaultStructureToolHandler(ToolHandler):
+    """Analyzes the complete vault structure to detect organizational patterns."""
+
+    def __init__(self):
+        super().__init__("obsidian_analyze_vault_structure")
+
+    def get_tool_description(self):
+        return Tool(
+            name=self.name,
+            description="Analyzes the complete vault structure to detect organizational patterns, including daily notes structure, people folder, projects hierarchy, and common frontmatter schemas. This helps the AI understand how the vault is organized.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "save_config": {
+                        "type": "boolean",
+                        "description": "Whether to save detected patterns to vault configuration (default: true)",
+                        "default": True
+                    }
+                }
+            }
+        )
+
+    def run_tool(self, args: dict) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
+        from .analyzers.structure import VaultStructureAnalyzer
+        from .config import get_config_manager
+
+        api = obsidian.Obsidian(api_key=api_key, host=obsidian_host)
+        analyzer = VaultStructureAnalyzer(api)
+
+        # Analyze vault structure
+        analysis = analyzer.analyze_vault_structure()
+
+        # Optionally save to config
+        save_config = args.get("save_config", True)
+        if save_config:
+            try:
+                config_mgr = get_config_manager()
+
+                # Update config with detected patterns
+                daily_notes_data = analysis.get("daily_notes", {})
+                people_data = analysis.get("people", {})
+                projects_data = analysis.get("projects", {})
+
+                config_mgr.update_detected_patterns(
+                    daily_notes={
+                        "pattern": daily_notes_data.get("pattern"),
+                        "sections": daily_notes_data.get("sample_sections", []),
+                        "frontmatter_fields": daily_notes_data.get("frontmatter_fields", [])
+                    } if daily_notes_data.get("found") else None,
+                    people={
+                        "folder": people_data.get("folder"),
+                        "schema": people_data.get("common_schema", {})
+                    } if people_data.get("found") else None,
+                    projects={
+                        "folders": projects_data.get("folders", []),
+                        "schema": projects_data.get("common_schema", {}),
+                        "hierarchy_pattern": projects_data.get("hierarchy_pattern")
+                    } if projects_data.get("found") else None,
+                    vault_folders=analysis.get("root_folders", [])
+                )
+
+                config_mgr.save()
+                analysis["config_saved"] = True
+                analysis["config_path"] = str(config_mgr.config_path)
+            except Exception as e:
+                analysis["config_error"] = f"Failed to save config: {str(e)}"
+
+        return [
+            TextContent(
+                type="text",
+                text=json.dumps(analysis, indent=2)
+            )
+        ]
+
+
+class AnalyzeFrontmatterInFolderToolHandler(ToolHandler):
+    """Analyzes frontmatter patterns in a specific folder."""
+
+    def __init__(self):
+        super().__init__("obsidian_analyze_frontmatter")
+
+    def get_tool_description(self):
+        return Tool(
+            name=self.name,
+            description="Analyzes frontmatter patterns across notes in a specific folder. Detects common fields, their types, and suggests improvements for consistency.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "folder_path": {
+                        "type": "string",
+                        "description": "Path to folder to analyze (e.g., 'People', 'Projetos/BeSolution')"
+                    },
+                    "sample_size": {
+                        "type": "integer",
+                        "description": "Number of notes to sample (default: 20)",
+                        "default": 20,
+                        "minimum": 1,
+                        "maximum": 100
+                    }
+                },
+                "required": ["folder_path"]
+            }
+        )
+
+    def run_tool(self, args: dict) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
+        from .analyzers.frontmatter import FrontmatterAnalyzer
+
+        if "folder_path" not in args:
+            raise RuntimeError("folder_path argument missing")
+
+        folder_path = args["folder_path"]
+        sample_size = args.get("sample_size", 20)
+
+        api = obsidian.Obsidian(api_key=api_key, host=obsidian_host)
+        analyzer = FrontmatterAnalyzer(api)
+
+        analysis = analyzer.analyze_frontmatter_in_folder(folder_path, sample_size)
+
+        return [
+            TextContent(
+                type="text",
+                text=json.dumps(analysis, indent=2)
+            )
+        ]
+
+
+class SuggestFrontmatterForNoteToolHandler(ToolHandler):
+    """Suggests frontmatter improvements for a specific note."""
+
+    def __init__(self):
+        super().__init__("obsidian_suggest_frontmatter")
+
+    def get_tool_description(self):
+        return Tool(
+            name=self.name,
+            description="Analyzes a specific note and suggests frontmatter fields to add or fix based on similar notes in the same folder. Helps maintain consistency across notes.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "note_path": {
+                        "type": "string",
+                        "description": "Path to the note to analyze (e.g., 'People/Igor Curi.md')"
+                    },
+                    "reference_folder": {
+                        "type": "string",
+                        "description": "Optional: Folder to use as reference for schema (default: note's parent folder)"
+                    }
+                },
+                "required": ["note_path"]
+            }
+        )
+
+    def run_tool(self, args: dict) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
+        from .analyzers.frontmatter import FrontmatterAnalyzer
+
+        if "note_path" not in args:
+            raise RuntimeError("note_path argument missing")
+
+        note_path = args["note_path"]
+        reference_folder = args.get("reference_folder")
+
+        api = obsidian.Obsidian(api_key=api_key, host=obsidian_host)
+        analyzer = FrontmatterAnalyzer(api)
+
+        suggestions = analyzer.suggest_frontmatter_for_note(note_path, reference_folder)
+
+        return [
+            TextContent(
+                type="text",
+                text=json.dumps(suggestions, indent=2)
+            )
+        ]
+
+
+class GetFolderContextToolHandler(ToolHandler):
+    """Gets context and metadata about a specific folder."""
+
+    def __init__(self):
+        super().__init__("obsidian_get_folder_context")
+
+    def get_tool_description(self):
+        return Tool(
+            name=self.name,
+            description="Gets rich context about a folder, including its purpose (based on configuration), common patterns, file count, and organizational structure. Helps understand what a folder is used for.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "folder_path": {
+                        "type": "string",
+                        "description": "Path to folder (e.g., 'People', 'Projetos', 'Daily Notes')"
+                    }
+                },
+                "required": ["folder_path"]
+            }
+        )
+
+    def run_tool(self, args: dict) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
+        from .analyzers.structure import VaultStructureAnalyzer
+        from .analyzers.frontmatter import FrontmatterAnalyzer
+        from .config import get_config_manager
+
+        if "folder_path" not in args:
+            raise RuntimeError("folder_path argument missing")
+
+        folder_path = args["folder_path"]
+
+        api = obsidian.Obsidian(api_key=api_key, host=obsidian_host)
+        config_mgr = get_config_manager()
+
+        # Get folder contents
+        try:
+            folder_contents = api.list_files_in_directory(folder_path)
+            files = folder_contents.get("files", [])
+            md_files = [f for f in files if f.endswith(".md") and not f.endswith("/")]
+            subfolders = [f.rstrip("/") for f in files if f.endswith("/")]
+        except Exception as e:
+            return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+
+        # Determine folder purpose based on config
+        purpose = "Unknown"
+        detected_type = None
+
+        # Check if it's the daily notes folder
+        daily_notes_folder = config_mgr.get_daily_notes_pattern()
+        if daily_notes_folder and folder_path.startswith(daily_notes_folder.split("/")[0]):
+            purpose = "Daily Notes - Contains daily journal entries and logs"
+            detected_type = "daily_notes"
+
+        # Check if it's the people folder
+        people_folder = config_mgr.get_people_folder()
+        if people_folder and folder_path == people_folder:
+            purpose = "People - Contains notes about individuals and contacts"
+            detected_type = "people"
+
+        # Check if it's a projects folder
+        project_folders = config_mgr.get_project_folders()
+        if any(folder_path.startswith(pf) for pf in project_folders):
+            purpose = "Projects - Contains project documentation and work items"
+            detected_type = "projects"
+
+        # Analyze frontmatter patterns (if not too many files)
+        frontmatter_analysis = None
+        if len(md_files) > 0 and len(md_files) <= 50:
+            analyzer = FrontmatterAnalyzer(api)
+            frontmatter_analysis = analyzer.analyze_frontmatter_in_folder(
+                folder_path,
+                sample_size=min(20, len(md_files))
+            )
+
+        context = {
+            "folder_path": folder_path,
+            "purpose": purpose,
+            "detected_type": detected_type,
+            "statistics": {
+                "total_files": len(files),
+                "markdown_files": len(md_files),
+                "subfolders": len(subfolders)
+            },
+            "subfolders": subfolders[:20],  # Limit to first 20
+            "sample_files": md_files[:10],  # Limit to first 10
+            "frontmatter_patterns": frontmatter_analysis
+        }
+
+        return [
+            TextContent(
+                type="text",
+                text=json.dumps(context, indent=2)
+            )
+        ]

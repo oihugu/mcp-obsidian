@@ -46,34 +46,44 @@ class Obsidian():
 
     def list_files_in_vault(self) -> Any:
         url = f"{self.get_base_url()}/vault/"
-        
+
         def call_fn():
             response = requests.get(url, headers=self._get_headers(), verify=self.verify_ssl, timeout=self.timeout)
             response.raise_for_status()
-            
-            return response.json()['files']
+
+            return response.json()
 
         return self._safe_call(call_fn)
 
         
     def list_files_in_dir(self, dirpath: str) -> Any:
         url = f"{self.get_base_url()}/vault/{dirpath}/"
-        
+
         def call_fn():
             response = requests.get(url, headers=self._get_headers(), verify=self.verify_ssl, timeout=self.timeout)
             response.raise_for_status()
-            
-            return response.json()['files']
+
+            return response.json()
 
         return self._safe_call(call_fn)
 
-    def get_file_contents(self, filepath: str) -> Any:
+    def list_files_in_directory(self, dirpath: str) -> Any:
+        """Alias for list_files_in_dir for consistency."""
+        return self.list_files_in_dir(dirpath)
+
+    def get_file_contents(self, filepath: str, return_json: bool = False) -> Any:
         url = f"{self.get_base_url()}/vault/{filepath}"
-    
+
         def call_fn():
-            response = requests.get(url, headers=self._get_headers(), verify=self.verify_ssl, timeout=self.timeout)
+            headers = self._get_headers()
+            if return_json:
+                headers['Accept'] = 'application/vnd.olrapi.note+json'
+
+            response = requests.get(url, headers=headers, verify=self.verify_ssl, timeout=self.timeout)
             response.raise_for_status()
-            
+
+            if return_json:
+                return response.json()
             return response.text
 
         return self._safe_call(call_fn)

@@ -1,0 +1,50 @@
+{
+  "daily_notes": {
+    "path_pattern": "auto-detect",
+    "detected_pattern": "Daily Notes/YYYY/YYYY-MM-DD.md",
+    "sections": [
+      "auto-detect"
+    ],
+    "detected_sections": [],
+    "frontmatter_fields": []
+  },
+  "people": {
+    "folder": "auto-detect",
+    "detected_folder": "People",
+    "frontmatter_schema": "auto-detect",
+    "detected_schema": {},
+    "name_pattern": "{First Name} {Last Name}.md"
+  },
+  "projects": {
+    "folders": [
+      "auto-detect"
+    ],
+    "detected_folders": [
+      "Projetos"
+    ],
+    "frontmatter_schema": "auto-detect",
+    "detected_schema": {},
+    "hierarchy_pattern": "Company/Project"
+  },
+  "features": {
+    "semantic_search": false,
+    "auto_linking": true,
+    "template_suggestions": true,
+    "relationship_analysis": true,
+    "smart_frontmatter": true
+  },
+  "last_analyzed": "2025-10-25T17:04:55.233425",
+  "vault_root_folders": [
+    "Arte Culin\u00e1ria",
+    "Daily Notes",
+    "Desenvolvimento",
+    "Excalidraw",
+    "GCP",
+    "Jardim",
+    "O Estado Da Arte",
+    "Others",
+    "People",
+    "Projetos",
+    "System"
+  ]
+}
