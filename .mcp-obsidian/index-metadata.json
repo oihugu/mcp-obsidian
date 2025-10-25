@@ -1,0 +1,12 @@
+{
+  "total_notes": 4,
+  "note_paths": [
+    "Latex Training.md",
+    "Mise en Place.md",
+    "Mudan\u00e7a.md",
+    "Untitled.md"
+  ],
+  "dimension": 384,
+  "model": "sentence-transformers/all-MiniLM-L6-v2",
+  "last_rebuild": "2025-10-25T18:10:06.643528"
+}

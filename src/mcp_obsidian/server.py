@@ -76,6 +76,13 @@ add_tool_handler(tools.CreateDailyNoteToolHandler())
 add_tool_handler(tools.AppendToDailyNoteToolHandler())
 add_tool_handler(tools.GetRecentDailyNotesToolHandler())
 
+# Semantic Search and Navigation Tools
+add_tool_handler(tools.SemanticSearchToolHandler())
+add_tool_handler(tools.FindRelatedNotesToolHandler())
+add_tool_handler(tools.SuggestLinksToolHandler())
+add_tool_handler(tools.AnalyzeRelationshipsToolHandler())
+add_tool_handler(tools.RebuildEmbeddingsToolHandler())
+
 @app.list_tools()
 async def list_tools() -> list[Tool]:
     """List available tools."""

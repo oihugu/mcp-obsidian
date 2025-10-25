@@ -399,3 +399,177 @@ mentions: [Igor Curi]
 
 Veja [PHASE4_IMPLEMENTATION.md](PHASE4_IMPLEMENTATION.md) para documentação completa.
 
+
+## Fase 2: Navegação Semântica ✅
+
+Busca inteligente por significado e análise de relacionamentos entre notas usando embeddings vetoriais.
+
+### 🆕 Tools Disponíveis (5 novos)
+
+#### Semantic Search
+
+1. **`obsidian_semantic_search`** - Busca notas por significado semântico
+2. **`obsidian_find_related_notes`** - Encontra notas relacionadas a uma nota específica
+3. **`obsidian_suggest_links`** - Sugere links para adicionar em uma nota
+4. **`obsidian_analyze_relationships`** - Analisa relacionamentos e clusters no vault
+5. **`obsidian_rebuild_embeddings`** - Reconstrói o índice de embeddings
+
+### Como Funciona
+
+**Tecnologia:**
+- **Modelo**: sentence-transformers/all-MiniLM-L6-v2
+- **Dimensão**: 384 embeddings vetoriais
+- **Busca**: FAISS (Facebook AI Similarity Search)
+- **Similaridade**: Cosine similarity (0-1)
+
+**Fluxo:**
+```
+Nota → Embedding (384D) → Índice FAISS → Busca por Similaridade
+```
+
+### Exemplos de Uso
+
+**Busca Semântica:**
+```json
+{
+  "tool": "obsidian_semantic_search",
+  "args": {
+    "query": "projetos de inteligência artificial e chatbots",
+    "folder": "Projetos",
+    "top_k": 10,
+    "min_similarity": 0.7
+  }
+}
+```
+
+**Encontrar Notas Relacionadas:**
+```json
+{
+  "tool": "obsidian_find_related_notes",
+  "args": {
+    "filepath": "People/Igor Curi.md",
+    "top_k": 5,
+    "min_similarity": 0.6
+  }
+}
+```
+
+**Sugerir Links:**
+```json
+{
+  "tool": "obsidian_suggest_links",
+  "args": {
+    "filepath": "Projetos/CNI - Chatbot.md",
+    "max_suggestions": 10,
+    "min_similarity": 0.7,
+    "check_existing": true
+  }
+}
+```
+
+**Analisar Relacionamentos:**
+```json
+{
+  "tool": "obsidian_analyze_relationships",
+  "args": {
+    "folder": "People",
+    "min_similarity": 0.7,
+    "find_clusters": true,
+    "find_bridges": true,
+    "find_isolated": true
+  }
+}
+```
+
+**Rebuild Embeddings:**
+```json
+{
+  "tool": "obsidian_rebuild_embeddings",
+  "args": {
+    "force": false,
+    "folder": "Projects"
+  }
+}
+```
+
+### Casos de Uso
+
+**1. Descobrir Conteúdo Relacionado**
+```
+Cenário: Trabalhando em projeto de ML
+→ obsidian_find_related_notes
+→ Descobre outros projetos de ML, pessoas especializadas, papers relevantes
+```
+
+**2. Melhorar Conectividade do Vault**
+```
+→ obsidian_analyze_relationships
+→ Identifica notas isoladas
+→ obsidian_suggest_links
+→ Adiciona links sugeridos
+→ Vault mais navegável
+```
+
+**3. Busca Inteligente**
+```
+Usuário: "reuniões sobre arquitetura de software"
+→ obsidian_semantic_search
+→ Encontra daily notes, projetos, discussões
+→ Não precisa ter palavras exatas
+```
+
+**4. Encontrar Especialistas**
+```
+Novo projeto de blockchain
+→ obsidian_semantic_search "expertise blockchain desenvolvimento"
+→ Encontra pessoas que trabalharam em projetos relacionados
+```
+
+### Performance
+
+**Vault Pequeno (<100 notas):**
+- Rebuild: ~10-30 segundos
+- Busca: <100ms
+
+**Vault Médio (100-1000 notas):**
+- Rebuild: ~1-5 minutos
+- Busca: <200ms
+
+**Vault Grande (>1000 notas):**
+- Rebuild: ~5-15 minutos
+- Busca: <500ms
+
+### Cache e Persistência
+
+**Arquivos gerados:**
+```
+.mcp-obsidian/
+├── embeddings-cache.json     # Embeddings + metadata
+├── faiss-index.bin            # Índice FAISS
+└── index-metadata.json        # Metadados do índice
+```
+
+**Cache inteligente:**
+- Hash de conteúdo para invalidação
+- Rebuild incremental
+- Modelo baixado uma vez (~80MB)
+
+### Recursos Avançados
+
+**Análise de Clusters:**
+- Identifica grupos de notas relacionadas
+- Calcula similaridade média
+- Infere temas automáticos
+
+**Bridge Notes:**
+- Notas que conectam diferentes clusters
+- Importantes para navegação
+- Facilitam descoberta de conhecimento
+
+**Notas Isoladas:**
+- Identifica notas com poucas conexões
+- Sugere links para melhorar conectividade
+- Ajuda a integrar conhecimento
+
+Veja [PHASE2_PLAN.md](PHASE2_PLAN.md) e [PHASE2_TEST_REPORT.md](PHASE2_TEST_REPORT.md) para documentação completa.
+

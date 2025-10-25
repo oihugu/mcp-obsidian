@@ -6,8 +6,11 @@ from mcp.types import (
     EmbeddedResource,
 )
 import json
+import logging
 import os
 from . import obsidian
+
+logger = logging.getLogger(__name__)
 
 api_key = os.getenv("OBSIDIAN_API_KEY", "")
 obsidian_host = os.getenv("OBSIDIAN_HOST", "127.0.0.1")
@@ -1402,3 +1405,380 @@ class GetRecentDailyNotesToolHandler(ToolHandler):
         notes = manager.get_recent_daily_notes(days=days, include_content=include_content)
 
         return [TextContent(type="text", text=json.dumps(notes, indent=2))]
+
+
+# ============================================================================
+# Phase 2: Semantic Search and Navigation Tools
+# ============================================================================
+
+class SemanticSearchToolHandler(ToolHandler):
+    """Semantic search for notes by meaning."""
+
+    def __init__(self):
+        super().__init__("obsidian_semantic_search")
+
+    def get_tool_description(self):
+        return Tool(
+            name=self.name,
+            description="Search for notes by semantic meaning (not just keywords). Uses AI embeddings to find conceptually similar notes.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Search query (can be a question, topic, or description)"
+                    },
+                    "top_k": {
+                        "type": "integer",
+                        "description": "Number of results to return (default: 10, max: 50)",
+                        "default": 10,
+                        "minimum": 1,
+                        "maximum": 50
+                    },
+                    "min_similarity": {
+                        "type": "number",
+                        "description": "Minimum similarity threshold 0-1 (default: 0.0)",
+                        "default": 0.0,
+                        "minimum": 0.0,
+                        "maximum": 1.0
+                    },
+                    "folder": {
+                        "type": "string",
+                        "description": "Optional folder to search within"
+                    },
+                    "include_content": {
+                        "type": "boolean",
+                        "description": "Include content snippets in results (default: false)",
+                        "default": False
+                    }
+                },
+                "required": ["query"]
+            }
+        )
+
+    def run_tool(self, args: dict) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
+        from .semantic import EmbeddingsManager, SemanticSearchEngine
+
+        query = args["query"]
+        top_k = args.get("top_k", 10)
+        min_similarity = args.get("min_similarity", 0.0)
+        folder = args.get("folder")
+        include_content = args.get("include_content", False)
+
+        # Initialize semantic search
+        embeddings_manager = EmbeddingsManager()
+        search_engine = SemanticSearchEngine(embeddings_manager)
+
+        # Perform search
+        results = search_engine.search(
+            query=query,
+            top_k=top_k,
+            min_similarity=min_similarity,
+            folder=folder,
+            include_content=include_content
+        )
+
+        return [TextContent(type="text", text=json.dumps(results, indent=2))]
+
+
+class FindRelatedNotesToolHandler(ToolHandler):
+    """Find notes related to a specific note."""
+
+    def __init__(self):
+        super().__init__("obsidian_find_related_notes")
+
+    def get_tool_description(self):
+        return Tool(
+            name=self.name,
+            description="Find notes semantically related to a specific note based on content similarity.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "filepath": {
+                        "type": "string",
+                        "description": "Path to the reference note"
+                    },
+                    "top_k": {
+                        "type": "integer",
+                        "description": "Number of related notes to return (default: 10)",
+                        "default": 10,
+                        "minimum": 1,
+                        "maximum": 50
+                    },
+                    "min_similarity": {
+                        "type": "number",
+                        "description": "Minimum similarity threshold 0-1 (default: 0.6)",
+                        "default": 0.6,
+                        "minimum": 0.0,
+                        "maximum": 1.0
+                    }
+                },
+                "required": ["filepath"]
+            }
+        )
+
+    def run_tool(self, args: dict) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
+        from .semantic import EmbeddingsManager, SemanticSearchEngine, RelationshipAnalyzer
+
+        filepath = args["filepath"]
+        top_k = args.get("top_k", 10)
+        min_similarity = args.get("min_similarity", 0.6)
+
+        # Get note content
+        api = obsidian.Obsidian(api_key=api_key, host=obsidian_host)
+        content = api.get_file_contents(filepath)
+
+        # Initialize semantic search
+        embeddings_manager = EmbeddingsManager()
+        search_engine = SemanticSearchEngine(embeddings_manager)
+        relationship_analyzer = RelationshipAnalyzer(search_engine)
+
+        # Find related notes
+        results = relationship_analyzer.find_related_notes(
+            filepath=filepath,
+            content=content,
+            top_k=top_k,
+            min_similarity=min_similarity
+        )
+
+        return [TextContent(type="text", text=json.dumps(results, indent=2))]
+
+
+class SuggestLinksToolHandler(ToolHandler):
+    """Suggest links to add to a note."""
+
+    def __init__(self):
+        super().__init__("obsidian_suggest_links")
+
+    def get_tool_description(self):
+        return Tool(
+            name=self.name,
+            description="Suggest potential links to add to a note based on semantic similarity and unlinked mentions.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "filepath": {
+                        "type": "string",
+                        "description": "Path to the note"
+                    },
+                    "max_suggestions": {
+                        "type": "integer",
+                        "description": "Maximum number of suggestions (default: 10)",
+                        "default": 10,
+                        "minimum": 1,
+                        "maximum": 50
+                    },
+                    "min_similarity": {
+                        "type": "number",
+                        "description": "Minimum similarity threshold 0-1 (default: 0.7)",
+                        "default": 0.7,
+                        "minimum": 0.0,
+                        "maximum": 1.0
+                    },
+                    "check_existing": {
+                        "type": "boolean",
+                        "description": "Don't suggest already linked notes (default: true)",
+                        "default": True
+                    }
+                },
+                "required": ["filepath"]
+            }
+        )
+
+    def run_tool(self, args: dict) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
+        from .semantic import EmbeddingsManager, SemanticSearchEngine, RelationshipAnalyzer, LinkSuggestionEngine
+
+        filepath = args["filepath"]
+        max_suggestions = args.get("max_suggestions", 10)
+        min_similarity = args.get("min_similarity", 0.7)
+        check_existing = args.get("check_existing", True)
+
+        # Get note content
+        api = obsidian.Obsidian(api_key=api_key, host=obsidian_host)
+        content = api.get_file_contents(filepath)
+
+        # Initialize link suggestion engine
+        embeddings_manager = EmbeddingsManager()
+        search_engine = SemanticSearchEngine(embeddings_manager)
+        relationship_analyzer = RelationshipAnalyzer(search_engine)
+        link_engine = LinkSuggestionEngine(relationship_analyzer)
+
+        # Get suggestions
+        suggestions = link_engine.suggest_links_for_note(
+            filepath=filepath,
+            content=content,
+            max_suggestions=max_suggestions,
+            min_similarity=min_similarity,
+            check_existing=check_existing
+        )
+
+        return [TextContent(type="text", text=json.dumps(suggestions, indent=2))]
+
+
+class AnalyzeRelationshipsToolHandler(ToolHandler):
+    """Analyze semantic relationships in the vault."""
+
+    def __init__(self):
+        super().__init__("obsidian_analyze_relationships")
+
+    def get_tool_description(self):
+        return Tool(
+            name=self.name,
+            description="Analyze semantic relationships between notes, find clusters, and identify bridge notes.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "folder": {
+                        "type": "string",
+                        "description": "Optional folder to analyze (analyzes entire vault if not specified)"
+                    },
+                    "min_similarity": {
+                        "type": "number",
+                        "description": "Minimum similarity for relationships (default: 0.7)",
+                        "default": 0.7,
+                        "minimum": 0.0,
+                        "maximum": 1.0
+                    },
+                    "find_clusters": {
+                        "type": "boolean",
+                        "description": "Find clusters of related notes (default: true)",
+                        "default": True
+                    },
+                    "find_bridges": {
+                        "type": "boolean",
+                        "description": "Find bridge notes connecting clusters (default: false)",
+                        "default": False
+                    },
+                    "find_isolated": {
+                        "type": "boolean",
+                        "description": "Find isolated notes with few connections (default: false)",
+                        "default": False
+                    }
+                }
+            }
+        )
+
+    def run_tool(self, args: dict) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
+        from .semantic import EmbeddingsManager, SemanticSearchEngine, RelationshipAnalyzer
+
+        folder = args.get("folder")
+        min_similarity = args.get("min_similarity", 0.7)
+        find_clusters = args.get("find_clusters", True)
+        find_bridges = args.get("find_bridges", False)
+        find_isolated = args.get("find_isolated", False)
+
+        # Initialize relationship analyzer
+        embeddings_manager = EmbeddingsManager()
+        search_engine = SemanticSearchEngine(embeddings_manager)
+        relationship_analyzer = RelationshipAnalyzer(search_engine)
+
+        result = {}
+
+        if find_clusters:
+            clusters = relationship_analyzer.analyze_note_clusters(
+                min_similarity=min_similarity,
+                folder=folder
+            )
+            result["clusters"] = clusters
+
+        if find_bridges:
+            bridges = relationship_analyzer.find_bridge_notes(
+                min_similarity=min_similarity,
+                folder=folder
+            )
+            result["bridge_notes"] = bridges
+
+        if find_isolated:
+            isolated = relationship_analyzer.find_isolated_notes(
+                min_similarity=min_similarity,
+                folder=folder
+            )
+            result["isolated_notes"] = isolated
+
+        # Always include summary stats
+        if folder:
+            stats = relationship_analyzer.analyze_folder_relationships(
+                folder=folder,
+                min_similarity=min_similarity
+            )
+            result["summary"] = stats
+        else:
+            # Get overall vault stats
+            graph = relationship_analyzer.get_vault_graph(min_similarity=min_similarity)
+            total_notes = len(graph)
+            total_connections = sum(len(conns) for conns in graph.values())
+            result["summary"] = {
+                "total_notes": total_notes,
+                "total_connections": total_connections,
+                "avg_connections": round(total_connections / total_notes, 2) if total_notes else 0
+            }
+
+        return [TextContent(type="text", text=json.dumps(result, indent=2))]
+
+
+class RebuildEmbeddingsToolHandler(ToolHandler):
+    """Rebuild the embeddings index."""
+
+    def __init__(self):
+        super().__init__("obsidian_rebuild_embeddings")
+
+    def get_tool_description(self):
+        return Tool(
+            name=self.name,
+            description="Rebuild the semantic search embeddings index for all or specific notes.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "force": {
+                        "type": "boolean",
+                        "description": "Force complete rebuild (default: false, incremental)",
+                        "default": False
+                    },
+                    "folder": {
+                        "type": "string",
+                        "description": "Optional folder to rebuild (rebuilds entire vault if not specified)"
+                    }
+                }
+            }
+        )
+
+    def run_tool(self, args: dict) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
+        from .semantic import EmbeddingsManager, SemanticSearchEngine
+
+        force = args.get("force", False)
+        folder = args.get("folder")
+
+        # Get all notes
+        api = obsidian.Obsidian(api_key=api_key, host=obsidian_host)
+        vault_data = api.list_files_in_vault()
+        all_files = vault_data.get("files", [])
+
+        # Filter markdown files
+        markdown_files = [f for f in all_files if f.endswith(".md")]
+
+        # Filter by folder if specified
+        if folder:
+            markdown_files = [f for f in markdown_files if f.startswith(folder)]
+
+        if not markdown_files:
+            return [TextContent(
+                type="text",
+                text=json.dumps({"error": "No markdown files found"}, indent=2)
+            )]
+
+        # Get content for all files
+        notes = []
+        for filepath in markdown_files:
+            try:
+                content = api.get_file_contents(filepath)
+                notes.append({"filepath": filepath, "content": content})
+            except Exception as e:
+                logger.error(f"Failed to get content for {filepath}: {e}")
+
+        # Build index
+        embeddings_manager = EmbeddingsManager()
+        search_engine = SemanticSearchEngine(embeddings_manager)
+
+        result = search_engine.build_index(notes, force=force)
+
+        return [TextContent(type="text", text=json.dumps(result, indent=2))]
