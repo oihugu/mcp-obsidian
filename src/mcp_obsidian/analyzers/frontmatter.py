@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger(__name__)
 """
 Frontmatter analyzer.
 
@@ -185,7 +187,7 @@ class FrontmatterAnalyzer:
         try:
             return self.client.get_file_contents(filepath, return_json=True)
         except Exception as e:
-            print(f"Error getting note metadata for {filepath}: {e}")
+            logger.debug(f"Error getting note metadata for {filepath}: {e}")
             return None
 
     def _build_schema(self, frontmatters: List[Dict[str, Any]]) -> Dict[str, Any]:

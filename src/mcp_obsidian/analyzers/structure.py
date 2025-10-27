@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger(__name__)
 """
 Vault structure analyzer.
 
@@ -62,7 +64,7 @@ class VaultStructureAnalyzer:
                     folders.append(item.rstrip("/"))
             return sorted(folders)
         except Exception as e:
-            print(f"Error getting root folders: {e}")
+            logger.debug(f"Error getting root folders: {e}")
             return []
 
     def _analyze_daily_notes(self, root_folders: List[str]) -> Dict[str, Any]:
@@ -114,7 +116,7 @@ class VaultStructureAnalyzer:
                 "frontmatter_fields": frontmatter_fields
             }
         except Exception as e:
-            print(f"Error analyzing daily notes: {e}")
+            logger.debug(f"Error analyzing daily notes: {e}")
             return {"found": True, "folder": daily_folder, "error": str(e)}
 
     def _analyze_people_folder(self, root_folders: List[str]) -> Dict[str, Any]:
@@ -165,7 +167,7 @@ class VaultStructureAnalyzer:
                 "common_schema": common_schema
             }
         except Exception as e:
-            print(f"Error analyzing people folder: {e}")
+            logger.debug(f"Error analyzing people folder: {e}")
             return {"found": True, "folder": people_folder, "error": str(e)}
 
     def _analyze_projects_structure(self, root_folders: List[str]) -> Dict[str, Any]:
@@ -215,7 +217,7 @@ class VaultStructureAnalyzer:
                 "common_schema": common_schema
             }
         except Exception as e:
-            print(f"Error analyzing projects: {e}")
+            logger.debug(f"Error analyzing projects: {e}")
             return {"found": True, "folders": [projects_folder], "error": str(e)}
 
     def _explore_folder_structure(
@@ -422,7 +424,7 @@ class VaultStructureAnalyzer:
         try:
             return self.client.get_file_contents(file_path, return_json=True)
         except Exception as e:
-            print(f"Error getting note metadata for {file_path}: {e}")
+            logger.debug(f"Error getting note metadata for {file_path}: {e}")
             return None
 
     def _extract_sections(self, content: str) -> List[str]:
@@ -495,7 +497,7 @@ class VaultStructureAnalyzer:
             root_structure = self._explore_folder_structure("", max_depth=2)
             return root_structure
         except Exception as e:
-            print(f"Error building folder hierarchy: {e}")
+            logger.debug(f"Error building folder hierarchy: {e}")
             return {"error": str(e)}
 
     def _calculate_statistics(self) -> Dict[str, int]:

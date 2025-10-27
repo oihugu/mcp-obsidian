@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger(__name__)
 """
 Projects manager for CRUD operations on project notes.
 
@@ -129,7 +131,7 @@ class ProjectsManager:
                     )
                     projects_list.extend(projects)
                 except Exception as e:
-                    print(f"Error listing projects in {folder}: {e}")
+                    logger.debug(f"Error listing projects in {folder}: {e}")
                     continue
 
         # Apply filters if provided
@@ -287,7 +289,7 @@ class ProjectsManager:
             folders = [f.rstrip("/") for f in result.get("files", []) if f.endswith("/")]
             return [f"{base_folder}/{f}" for f in folders]
         except Exception as e:
-            print(f"Error getting company folders: {e}")
+            logger.debug(f"Error getting company folders: {e}")
             return []
 
     def _list_projects_in_folder(
@@ -339,7 +341,7 @@ class ProjectsManager:
                     projects.extend(subprojects)
 
         except Exception as e:
-            print(f"Error listing projects in {folder}: {e}")
+            logger.debug(f"Error listing projects in {folder}: {e}")
 
         return projects
 

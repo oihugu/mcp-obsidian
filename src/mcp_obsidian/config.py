@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger(__name__)
 """
 Configuration management for MCP Obsidian server.
 
@@ -95,7 +97,7 @@ class ConfigManager:
                     data = json.load(f)
                 return self._dict_to_config(data)
             except Exception as e:
-                print(f"Error loading config: {e}. Using default.")
+                logger.debug(f"Error loading config: {e}. Using default.")
                 return VaultConfig()
         else:
             return VaultConfig()
@@ -132,9 +134,9 @@ class ConfigManager:
         try:
             with open(self.config_path, "w") as f:
                 json.dump(self._config_to_dict(), f, indent=2)
-            print(f"Configuration saved to {self.config_path}")
+            logger.debug(f"Configuration saved to {self.config_path}")
         except Exception as e:
-            print(f"Error saving config: {e}")
+            logger.debug(f"Error saving config: {e}")
 
     def update_detected_patterns(
         self,

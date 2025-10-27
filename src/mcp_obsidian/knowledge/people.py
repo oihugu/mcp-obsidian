@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger(__name__)
 """
 People manager for CRUD operations on person notes.
 
@@ -124,7 +126,7 @@ class PeopleManager:
             return people_list
 
         except Exception as e:
-            print(f"Error listing people: {e}")
+            logger.debug(f"Error listing people: {e}")
             return []
 
     def get_person(self, name: str) -> Optional[Dict[str, Any]]:
@@ -155,7 +157,7 @@ class PeopleManager:
                     "stat": note_data.get("stat", {})
                 }
         except Exception as e:
-            print(f"Error getting person {name}: {e}")
+            logger.debug(f"Error getting person {name}: {e}")
             return None
 
     def update_person(

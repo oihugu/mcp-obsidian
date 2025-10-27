@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger(__name__)
 """
 Daily Notes manager for intelligent creation and management.
 
@@ -112,7 +114,7 @@ class DailyNotesManager:
                     "stat": note_data.get("stat", {})
                 }
         except Exception as e:
-            print(f"Error getting daily note for {date.strftime('%Y-%m-%d')}: {e}")
+            logger.debug(f"Error getting daily note for {date.strftime('%Y-%m-%d')}: {e}")
             return None
 
     def append_to_daily_note(
@@ -185,20 +187,27 @@ class DailyNotesManager:
         Returns:
             List of daily note dictionaries
         """
-        notes = []
-        today = datetime.now()
+        pattern = self.config.get_daily_notes_pattern()
 
-        for i in range(days):
-            date = today - timedelta(days=i)
-            note = self.get_daily_note(date)
+        # If pattern is configured, use the optimized path-based approach
+        if pattern:
+            notes = []
+            today = datetime.now()
 
-            if note:
-                if not include_content:
-                    # Remove content to save space
-                    note.pop("content", None)
-                notes.append(note)
+            for i in range(days):
+                date = today - timedelta(days=i)
+                note = self.get_daily_note(date)
 
-        return notes
+                if note:
+                    if not include_content:
+                        # Remove content to save space
+                        note.pop("content", None)
+                    notes.append(note)
+
+            return notes
+
+        # Fallback: Search for daily notes without pattern
+        return self._search_recent_daily_notes(days, include_content)
 
     def list_daily_notes_in_range(
         self,
@@ -356,3 +365,91 @@ class DailyNotesManager:
 
         fm_lines.append("---")
         return "\n".join(fm_lines)
+
+    def _search_recent_daily_notes(
+        self,
+        days: int = 7,
+        include_content: bool = False
+    ) -> List[Dict[str, Any]]:
+        """
+        Search for recent daily notes without relying on pattern detection.
+        Recursively explores Daily Notes folder and finds recent notes.
+        """
+        import re
+
+        notes = []
+        today = datetime.now()
+        cutoff_date = today - timedelta(days=days)
+
+        # Date pattern in filenames: YYYY-MM-DD or MM-DD
+        date_pattern = re.compile(r'(\d{4})-(\d{2})-(\d{2})\.md$|(\d{2})-(\d{2})\.md$')
+
+        def explore_folder(path: str):
+            """Recursively explore folder for daily note files."""
+            try:
+                result = self.client.list_files_in_dir(path)
+                files = result.get('files', [])
+
+                for file in files:
+                    file_path = f"{path}/{file}" if not path.endswith('/') else f"{path}{file}"
+
+                    # If it's a directory, explore it
+                    if file.endswith('/'):
+                        explore_folder(file_path)
+                    # If it's a markdown file, check if it matches date pattern
+                    elif file.endswith('.md'):
+                        match = date_pattern.search(file)
+                        if match:
+                            try:
+                                # Parse date from filename
+                                if match.group(1):  # YYYY-MM-DD format
+                                    file_date = datetime(
+                                        int(match.group(1)),
+                                        int(match.group(2)),
+                                        int(match.group(3))
+                                    )
+                                else:  # MM-DD format - use current year from path
+                                    year_match = re.search(r'/(\d{4})/', file_path)
+                                    year = int(year_match.group(1)) if year_match else today.year
+                                    file_date = datetime(
+                                        year,
+                                        int(match.group(4)),
+                                        int(match.group(5))
+                                    )
+
+                                # Check if within date range
+                                if cutoff_date <= file_date <= today:
+                                    note_data = {
+                                        "path": file_path,
+                                        "date": file_date.strftime("%Y-%m-%d"),
+                                        "filename": file
+                                    }
+
+                                    if include_content:
+                                        try:
+                                            content_data = self.client.get_file_contents(file_path, return_json=True)
+                                            if content_data:
+                                                note_data["content"] = content_data.get("content", "")
+                                                note_data["frontmatter"] = content_data.get("frontmatter", {})
+                                                note_data["tags"] = content_data.get("tags", [])
+                                        except:
+                                            pass
+
+                                    notes.append(note_data)
+                            except (ValueError, IndexError):
+                                # Skip files that don't parse as valid dates
+                                pass
+            except Exception as e:
+                logger.debug(f"Error exploring folder {path}: {e}")
+
+        # Start exploring from Daily Notes folder
+        try:
+            explore_folder("Daily Notes")
+        except Exception as e:
+            logger.debug(f"Error accessing Daily Notes folder: {e}")
+            return []
+
+        # Sort by date descending (most recent first)
+        notes.sort(key=lambda x: x["date"], reverse=True)
+
+        return notes

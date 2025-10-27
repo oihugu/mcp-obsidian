@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from functools import lru_cache
 from typing import Any
 import os
+import warnings
 from dotenv import load_dotenv
 from mcp.server import Server
 from mcp.types import (
@@ -14,6 +15,10 @@ from mcp.types import (
 )
 
 load_dotenv()
+
+# Disable SSL warnings to prevent breaking STDIO protocol
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 from . import tools
 
@@ -109,7 +114,6 @@ async def call_tool(name: str, arguments: Any) -> Sequence[TextContent | ImageCo
 
 
 async def main():
-
     # Import here to avoid issues with event loops
     from mcp.server.stdio import stdio_server
 
